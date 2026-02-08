@@ -1,0 +1,2338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart City Dashboard - Sri Lanka</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* Main Control Panel */
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 400px;
+            max-height: 85vh;
+            overflow-y: auto;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Real-time Data Panel */
+        .realtime-panel {
+            position: absolute;
+            top: 80px;
+            left: 430px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 350px;
+            max-height: 75vh;
+            overflow-y: auto;
+            backdrop-filter: blur(5px);
+            display: none;
+        }
+
+        /* Waste Management Panel */
+        .waste-panel {
+            position: absolute;
+            top: 80px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 400px;
+            max-height: 75vh;
+            overflow-y: auto;
+            backdrop-filter: blur(5px);
+            display: none;
+        }
+
+        .traffic-legend {
+            position: absolute;
+            top: 10px;
+            right: 420px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 12px;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Common Styles */
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 5px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .search-container {
+            margin-bottom: 15px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 5px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+        }
+
+        .search-box button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .search-box button:hover {
+            background: #0056b3;
+        }
+
+        .data-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(249, 249, 249, 0.8);
+            border-radius: 5px;
+        }
+
+        .data-section h4 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .info-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            font-size: 13px;
+        }
+
+        .info-item.warning {
+            border-left-color: #ff8800;
+            background: #fff8e1;
+        }
+
+        .info-item.success {
+            border-left-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        .info-item.danger {
+            border-left-color: #dc3545;
+            background: #ffebee;
+        }
+
+        .info-item.info {
+            border-left-color: #17a2b8;
+            background: #e3f2fd;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 10px 15px;
+            font-size: 12px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Traffic Control */
+        .traffic-control {
+            position: absolute;
+            top: 10px;
+            right: 200px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+            display: flex;
+            gap: 10px;
+        }
+
+        .traffic-btn {
+            padding: 5px 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .traffic-btn.active {
+            background: #28a745;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.98);
+            padding: 20px 30px;
+            border-radius: 10px;
+            z-index: 2000;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .map-title {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .map-title h3 {
+            color: #007bff;
+            font-size: 18px;
+        }
+
+        .map-title p {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .quick-locations {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .location-btn {
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: calc(50% - 8px);
+        }
+
+        .location-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .quick-action-btn {
+            padding: 6px 10px;
+            margin: 3px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .quick-action-btn.primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .quick-action-btn.success {
+            background: #28a745;
+            color: white;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* City Grid */
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .city-btn {
+            padding: 8px 5px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: center;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .city-btn:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .city-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        /* Province Filters */
+        .province-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .province-btn {
+            padding: 4px 8px;
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 15px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .province-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        /* Real-time Indicators */
+        .realtime-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .indicator-good { background: #4CAF50; }
+        .indicator-moderate { background: #FFC107; }
+        .indicator-poor { background: #FF9800; }
+        .indicator-bad { background: #F44336; }
+        .indicator-hazardous { background: #9C27B0; }
+
+        /* Air Quality Gauge */
+        .aqi-gauge {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(90deg, #4CAF50 0%, #FFC107 25%, #FF9800 50%, #F44336 75%, #9C27B0 100%);
+            border-radius: 10px;
+            margin: 5px 0;
+            position: relative;
+        }
+
+        .aqi-marker {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 30px;
+            background: #333;
+            transform: translateX(-50%);
+        }
+
+        /* Weather Icon */
+        .weather-icon {
+            font-size: 24px;
+            text-align: center;
+            margin: 5px 0;
+        }
+
+        /* Disaster Alert */
+        .disaster-alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            animation: alertPulse 2s infinite;
+        }
+
+        @keyframes alertPulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .alert-none { background: #4CAF50; }
+        .alert-low { background: #FFC107; }
+        .alert-medium { background: #FF9800; }
+        .alert-high { background: #F44336; }
+        .alert-critical { background: #9C27B0; }
+
+        /* System Status */
+        .system-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 11px;
+        }
+
+        .status-operational { background: #E8F5E9; border-left: 4px solid #4CAF50; }
+        .status-maintenance { background: #FFF3E0; border-left: 4px solid #FF9800; }
+        .status-disrupted { background: #FFEBEE; border-left: 4px solid #F44336; }
+
+        /* Province Badges */
+        .province-badge {
+            font-size: 8px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            margin-top: 3px;
+            color: white;
+        }
+
+        .province-western { background: #2196F3; }
+        .province-central { background: #4CAF50; }
+        .province-southern { background: #FF9800; }
+        .province-northern { background: #F44336; }
+        .province-eastern { background: #9C27B0; }
+        .province-north-western { background: #795548; }
+        .province-north-central { background: #607D8B; }
+        .province-uva { background: #009688; }
+        .province-sabaragamuwa { background: #FF5722; }
+
+        /* City Status Dot */
+        .city-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 4px;
+            display: inline-block;
+        }
+
+        /* Waste Collection Progress */
+        .collection-progress {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-morning { background: #4CAF50; }
+        .progress-afternoon { background: #FFC107; }
+        .progress-evening { background: #FF9800; }
+        .progress-night { background: #9C27B0; }
+
+        /* Dashboard Summary */
+        .dashboard-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .summary-item {
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .summary-cities { background: #E3F2FD; }
+        .summary-alerts { background: #FFF3E0; }
+        .summary-ongoing { background: #E8F5E9; }
+
+        /* City Quick View */
+        .city-quick-view {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            z-index: 999;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 12px;
+            max-width: 250px;
+            display: none;
+        }
+
+        /* Live Updates Counter */
+        .update-counter {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #F44336;
+            color: white;
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            animation: counterPulse 1s infinite;
+        }
+
+        @keyframes counterPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+
+    <!-- Landing page extra styles -->
+    <style>
+        :root{ --accent:#0ea5e9; --muted:#cfeefd; }
+        .landing{
+            position: fixed; inset:0; display:flex; align-items:center; justify-content:center;
+            background: radial-gradient(1200px 600px at 10% 10%, rgba(14,165,233,0.06), transparent), linear-gradient(135deg,#071129 0%, #0b2e55 60%);
+            color:#fff; z-index:3000; padding:24px; font-
+            family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        }
+        .landing-card{ width:100%; max-width:980px; border-radius:14px; padding:36px; position:relative; overflow:hidden; box-shadow: 0 20px 50px rgba(2,6,23,0.7); background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); }
+        .landing-grid{ display:flex; gap:24px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+        .landing-hero{ flex:1 1 420px; text-align:left; }
+        .landing h1{ font-size:34px; margin:0 0 8px; font-weight:800; letter-spacing: -0.5px; }
+        .tagline{ color:var(--muted); margin-bottom:18px; font-size:15px; }
+        .feature-list{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+        .feature{ background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:10px; font-size:13px; color:#d8eefc; display:inline-flex; gap:8px; align-items:center; }
+        .landing-cta{ display:flex; gap:12px; align-items:center; }
+        .btn{ display:inline-flex; gap:10px; align-items:center; padding:12px 18px; border-radius:10px; cursor:pointer; border:0; font-weight:600; }
+        .btn-enter{ background:var(--accent); color:#052031; box-shadow:0 6px 18px rgba(14,165,233,0.16); }
+        .btn-demo{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.08); }
+        .landing-visual{ flex:0 0 360px; display:flex; align-items:center; justify-content:center; }
+        .skyline{ width:100%; max-width:360px; opacity:0.95; filter:drop-shadow(0 6px 18px rgba(2,6,23,0.6)); }
+
+        /* subtle animated gradient lines */
+        .glow-line{ position:absolute; width:140%; height:220px; left:-20%; top:-60px; background:linear-gradient(90deg, rgba(14,165,233,0.06), rgba(14,165,233,0)); transform:rotate(-12deg); animation:float 6s ease-in-out infinite; }
+        @keyframes float{ 0%{transform:translateY(0) rotate(-12deg)}50%{transform:translateY(8px) rotate(-12deg)}100%{transform:translateY(0) rotate(-12deg)} }
+
+        /* fade-out */
+        .landing-hidden{ opacity:0; transform:translateY(-12px); transition:opacity .6s ease, transform .6s ease; }
+
+        /* small responsive tweaks */
+        @media (max-width:880px){ .landing-grid{flex-direction:column-reverse; text-align:center} .landing-hero{text-align:center} .landing-visual{flex:1 1 100%} }
+    </style>
+
+</head>
+<body>
+    <div class="landing" id="landing">
+        <div class="glow-line" aria-hidden="true"></div>
+        <div class="landing-card">
+            <div class="landing-grid">
+                <div class="landing-hero">
+                    <h1>Smart City Dashboard — Sri Lanka</h1>
+                    <div class="tagline">Monitor traffic, air quality, waste ops and disaster alerts in real time.</div>
+                    <div class="feature-list">
+                        <div class="feature"><i class="fas fa-broadcast-tower"></i> Live updates</div>
+                        <div class="feature"><i class="fas fa-map-marked-alt"></i> City map</div>
+                        <div class="feature"><i class="fas fa-recycle"></i> Waste insights</div>
+                        <div class="feature"><i class="fas fa-exclamation-triangle"></i> Alerts</div>
+                    </div>
+                    <div class="landing-cta">
+                        <button class="btn btn-enter" onclick="enterDashboard()"><i class="fas fa-arrow-right"></i> Enter Dashboard</button>
+                        <button class="btn btn-demo" onclick="previewDemo()"><i class="fas fa-play"></i> Preview Demo</button>
+                    </div>
+                </div>
+                <div class="landing-visual">
+                    <!-- Simple skyline SVG for visual interest -->
+                    <svg class="skyline" viewBox="0 0 600 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="City skyline illustration">
+                        <defs>
+                            <linearGradient id="g" x1="0" x2="1">
+                                <stop offset="0" stop-color="#0ea5e9" stop-opacity="0.15"/>
+                                <stop offset="1" stop-color="#7dd3fc" stop-opacity="0.02"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#g)" />
+                        <g fill="#cfeefd" opacity="0.95">
+                            <rect x="10" y="220" width="60" height="120" rx="4"/>
+                            <rect x="90" y="180" width="40" height="160" rx="3"/>
+                            <rect x="140" y="150" width="80" height="190" rx="4"/>
+                            <rect x="240" y="160" width="50" height="180" rx="3"/>
+                            <rect x="310" y="140" width="100" height="200" rx="4"/>
+                            <rect x="430" y="180" width="60" height="160" rx="3"/>
+                            <rect x="510" y="220" width="60" height="120" rx="4"/>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.5); margin-top:14px; text-align:right;">Ministry of Urban Development • Demo</div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Main Control Panel -->
+    <div class="control-panel">
+        <div class="map-title">
+            <h3>🇱🇰 Sri Lanka Smart Cities</h3>
+            <p><span class="live-indicator"></span> Real-time Monitoring Dashboard</p>
+        </div>
+
+        <!-- Province Filters -->
+        <div class="province-filters" id="province-filters">
+            <button class="province-btn active" onclick="filterCities('all')">All</button>
+            <button class="province-btn" onclick="filterCities('western')">Western</button>
+            <button class="province-btn" onclick="filterCities('central')">Central</button>
+            <button class="province-btn" onclick="filterCities('southern')">Southern</button>
+            <button class="province-btn" onclick="filterCities('northern')">Northern</button>
+            <button class="province-btn" onclick="filterCities('eastern')">Eastern</button>
+        </div>
+
+        <!-- Search Box -->
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search city..." autocomplete="off">
+                <button id="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Summary -->
+        <div class="dashboard-summary">
+            <div class="summary-item summary-cities">
+                <div style="font-size: 16px; font-weight: bold;" id="total-cities">32</div>
+                <div>Cities</div>
+            </div>
+            <div class="summary-item summary-alerts">
+                <div style="font-size: 16px; font-weight: bold;" id="active-alerts">5</div>
+                <div>Active Alerts</div>
+            </div>
+            <div class="summary-item summary-ongoing">
+                <div style="font-size: 16px; font-weight: bold;" id="ongoing-ops">47</div>
+                <div>Operations</div>
+            </div>
+        </div>
+
+        <!-- City Selection Grid -->
+        <div id="city-grid-container">
+            <div style="font-size: 14px; color: #333; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                <i class="fas fa-city"></i> Cities
+                <span id="city-count" style="float: right; font-size: 11px; color: #666;">32 cities</span>
+            </div>
+            <div class="city-grid" id="city-grid">
+                <!-- Cities will be populated here -->
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="system-status status-operational">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-check-circle"></i> All Systems Operational</span>
+                <span id="update-timer">00:00</span>
+            </div>
+            <div style="font-size: 10px; color: #666; margin-top: 5px;">
+                Last updated: <span id="last-updated">Just now</span>
+            </div>
+        </div>
+
+        <!-- Quick Info -->
+        <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px; font-size: 11px; color: #1565c0;">
+            <strong><i class="fas fa-info-circle"></i> Quick Info:</strong><br>
+            <div style="margin-top: 5px;">
+                • Click any city for real-time data<br>
+                • <span class="city-status-dot" style="background: #F44336;"></span> Critical alert<br>
+                • <span class="city-status-dot" style="background: #FF9800;"></span> Moderate alert<br>
+                • <span class="city-status-dot" style="background: #4CAF50;"></span> All clear
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Data Panel -->
+    <div class="realtime-panel" id="realtime-panel">
+        <button class="close-btn" onclick="closeRealtimePanel()">×</button>
+        <div id="realtime-content"></div>
+    </div>
+
+    <!-- Waste Management Panel -->
+    <div class="waste-panel" id="waste-panel">
+        <button class="close-btn" onclick="closeWastePanel()">×</button>
+        <div id="waste-content"></div>
+    </div>
+
+    <!-- Traffic Legend -->
+    <div class="traffic-legend" id="traffic-legend">
+        <div style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">Traffic Conditions</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00c853;"></div>
+            <span>Free Flow</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffd600;"></div>
+            <span>Moderate</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff9100;"></div>
+            <span>Heavy</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #d50000;"></div>
+            <span>Congested</span>
+        </div>
+    </div>
+
+    <!-- Traffic Control -->
+    <div class="traffic-control" id="traffic-control">
+        <button class="traffic-btn" id="show-traffic-btn" onclick="toggleTraffic()">
+            <i class="fas fa-traffic-light"></i> Traffic
+        </button>
+        <button class="traffic-btn" id="refresh-traffic-btn" onclick="refreshTraffic()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <button class="traffic-btn" onclick="showAllCities()">
+            <i class="fas fa-globe"></i> All Cities
+        </button>
+    </div>
+
+    <!-- Report Button -->
+    <button class="report-btn" onclick="openReportModal()">
+        <i class="fas fa-exclamation-circle"></i> Report Emergency
+    </button>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div id="loading-text">Loading real-time data...</div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div id="location-status">📍 Select a city for real-time monitoring • <span id="server-time"></span></div>
+        <div id="api-status">
+            <span class="live-indicator"></span> 
+            <span id="connected-systems">32</span> cities • 
+            <span id="active-operations">47</span> ongoing operations
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([7.8731, 80.7718], 8);
+
+        // Base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // State management
+        const appState = {
+            currentCity: null,
+            markers: L.layerGroup().addTo(map),
+            trafficRoutes: L.layerGroup().addTo(map),
+            cityMarkers: L.layerGroup().addTo(map),
+            disasterMarkers: L.layerGroup().addTo(map),
+            isTrafficVisible: true,
+            activeFilter: 'all',
+            lastUpdate: new Date(),
+            updateInterval: null
+        };
+
+        // Comprehensive City Data for ALL 32 Cities
+        const CITY_DATA = {
+            // Western Province (6 cities)
+            "Colombo": {
+                province: "western",
+                coordinates: [6.9271, 79.8612],
+                population: "752,993",
+                category: "Commercial Capital",
+                realtime: {
+                    traffic: { level: "congested", average_speed: "15 km/h", hotspots: ["Fort", "Bambalapitiya", "Pettah"], last_update: "2 min ago" },
+                    weather: { temp: 32, condition: "Partly Cloudy", humidity: 78, wind: "12 km/h", feels_like: 36, icon: "⛅" },
+                    air_quality: { aqi: 145, level: "Unhealthy", pm25: 65, pm10: 110, o3: 45, primary_pollutant: "PM2.5" },
+                    disaster: { level: "low", type: "urban_flood", message: "Minor flooding in low-lying areas", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Colombo Central Waste Station", type: "collection_center", capacity: 85, status: "active", wasteTypes: ["organic", "plastic", "paper", "metal"], processing: "50 tons/day"},
+                        {name: "Borella Recycling Center", type: "recycling", capacity: 65, status: "active", recyclingRate: "75%", processing: "20 tons/day"},
+                        {name: "Nugegoda Transfer Station", type: "transfer", capacity: 92, status: "warning", wasteTypes: ["mixed"], processing: "40 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "1200 tons", recyclingRate: "35%", collectionCoverage: "85%", landfillUsage: "50%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Colombo 1-7", completion: "65%", vehicles: 8, time: "morning"},
+                        {type: "processing", status: "operational", capacity: "85%", shift: "Morning", efficiency: "92%"},
+                        {type: "recycling", status: "active", materials: ["Plastic", "Paper"], rate: "75%", output: "8 tons/day"}
+                    ]
+                }
+            },
+            "Gampaha": {
+                province: "western",
+                coordinates: [7.0917, 79.9997],
+                population: "2,300,000",
+                category: "Industrial Zone",
+                realtime: {
+                    traffic: { level: "heavy", average_speed: "25 km/h", hotspots: ["Negombo Road", "Kadawatha"], last_update: "5 min ago" },
+                    weather: { temp: 31, condition: "Sunny", humidity: 75, wind: "10 km/h", feels_like: 34, icon: "☀️" },
+                    air_quality: { aqi: 110, level: "Unhealthy for Sensitive", pm25: 45, pm10: 85, o3: 40, primary_pollutant: "PM10" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Gampaha Main Collection", type: "collection_center", capacity: 70, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "35 tons/day"},
+                        {name: "Negombo Coastal Waste", type: "collection_center", capacity: 60, status: "active", wasteTypes: ["organic", "plastic", "glass"], processing: "25 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "800 tons", recyclingRate: "28%", collectionCoverage: "75%", landfillUsage: "40%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Gampaha Town", completion: "40%", vehicles: 4, time: "morning"},
+                        {type: "processing", status: "operational", capacity: "70%", shift: "Morning", efficiency: "88%"}
+                    ]
+                }
+            },
+            "Kalutara": {
+                province: "western",
+                coordinates: [6.5854, 79.9607],
+                population: "127,000",
+                category: "Coastal City",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "35 km/h", hotspots: ["Kalutara Town"], last_update: "7 min ago" },
+                    weather: { temp: 29, condition: "Clear", humidity: 80, wind: "15 km/h", feels_like: 32, icon: "☀️" },
+                    air_quality: { aqi: 55, level: "Moderate", pm25: 22, pm10: 45, o3: 30, primary_pollutant: "O3" },
+                    disaster: { level: "low", type: "coastal_erosion", message: "Minor coastal erosion reported", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Kalutara Waste Center", type: "collection_center", capacity: 55, status: "active", wasteTypes: ["organic", "plastic"], processing: "15 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "300 tons", recyclingRate: "22%", collectionCoverage: "70%", landfillUsage: "35%"},
+                    ongoing: [
+                        {type: "collection", status: "scheduled", route: "Kalutara Coastal", completion: "0%", vehicles: 3, time: "afternoon"},
+                        {type: "recycling", status: "active", materials: ["Plastic"], rate: "22%", output: "2 tons/day"}
+                    ]
+                }
+            },
+            "Negombo": {
+                province: "western",
+                coordinates: [7.2086, 79.8358],
+                population: "142,000",
+                category: "Tourist Hub",
+                realtime: {
+                    traffic: { level: "heavy", average_speed: "20 km/h", hotspots: ["Beach Road", "Main Street"], last_update: "3 min ago" },
+                    weather: { temp: 30, condition: "Partly Cloudy", humidity: 82, wind: "12 km/h", feels_like: 33, icon: "⛅" },
+                    air_quality: { aqi: 85, level: "Moderate", pm25: 32, pm10: 60, o3: 35, primary_pollutant: "PM2.5" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Negombo Beach Waste", type: "collection_center", capacity: 60, status: "active", wasteTypes: ["organic", "plastic", "glass"], processing: "20 tons/day"},
+                        {name: "Negombo Recycling", type: "recycling", capacity: 45, status: "active", recyclingRate: "40%", processing: "8 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "280 tons", recyclingRate: "35%", collectionCoverage: "85%", landfillUsage: "30%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Beach Area", completion: "75%", vehicles: 3, time: "morning"},
+                        {type: "beach_cleanup", status: "active", teams: 2, completion: "60%", time: "morning"}
+                    ]
+                }
+            },
+
+            // Central Province (5 cities)
+            "Kandy": {
+                province: "central",
+                coordinates: [7.2906, 80.6337],
+                population: "125,400",
+                category: "Cultural Capital",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "30 km/h", hotspots: ["City Center", "Peradeniya"], last_update: "4 min ago" },
+                    weather: { temp: 24, condition: "Cloudy", humidity: 82, wind: "8 km/h", feels_like: 26, icon: "☁️" },
+                    air_quality: { aqi: 65, level: "Moderate", pm25: 25, pm10: 50, o3: 30, primary_pollutant: "PM2.5" },
+                    disaster: { level: "medium", type: "landslide", message: "Landslide warning in hilly areas", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Kandy City Waste Center", type: "collection_center", capacity: 70, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "30 tons/day"},
+                        {name: "Peradeniya Recycling Unit", type: "recycling", capacity: 50, status: "active", recyclingRate: "65%", processing: "12 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "400 tons", recyclingRate: "25%", collectionCoverage: "75%", landfillUsage: "45%"},
+                    ongoing: [
+                        {type: "collection", status: "scheduled", route: "Kandy Municipal", completion: "0%", vehicles: 3, start_time: "08:00"},
+                        {type: "composting", status: "active", capacity: "70%", output: "5 tons/day"}
+                    ]
+                }
+            },
+            "Matale": {
+                province: "central",
+                coordinates: [7.4675, 80.6234],
+                population: "47,000",
+                category: "Heritage City",
+                realtime: {
+                    traffic: { level: "free", average_speed: "45 km/h", hotspots: [], last_update: "10 min ago" },
+                    weather: { temp: 26, condition: "Clear", humidity: 78, wind: "6 km/h", feels_like: 28, icon: "☀️" },
+                    air_quality: { aqi: 45, level: "Good", pm25: 15, pm10: 30, o3: 25, primary_pollutant: "None" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Matale Waste Station", type: "collection_center", capacity: 45, status: "active", wasteTypes: ["organic", "plastic"], processing: "12 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "180 tons", recyclingRate: "20%", collectionCoverage: "65%", landfillUsage: "30%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Matale Town", completion: "55%", vehicles: 2, time: "morning"},
+                        {type: "organic_processing", status: "active", capacity: "45%", output: "3 tons/day"}
+                    ]
+                }
+            },
+            "Nuwara Eliya": {
+                province: "central",
+                coordinates: [6.9497, 80.7891],
+                population: "35,000",
+                category: "Hill Station",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "32 km/h", hotspots: ["City Center"], last_update: "8 min ago" },
+                    weather: { temp: 18, condition: "Misty", humidity: 90, wind: "5 km/h", feels_like: 16, icon: "🌫️" },
+                    air_quality: { aqi: 35, level: "Good", pm25: 12, pm10: 25, o3: 20, primary_pollutant: "None" },
+                    disaster: { level: "low", type: "fog", message: "Heavy fog affecting visibility", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Nuwara Eliya Waste Management", type: "collection_center", capacity: 40, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "10 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "150 tons", recyclingRate: "30%", collectionCoverage: "80%", landfillUsage: "25%"},
+                    ongoing: [
+                        {type: "collection", status: "delayed", route: "Nuwara Eliya", completion: "30%", vehicles: 2, delay_reason: "Fog conditions"},
+                        {type: "composting", status: "active", capacity: "40%", output: "3 tons/day"}
+                    ]
+                }
+            },
+
+            // Southern Province (4 cities)
+            "Galle": {
+                province: "southern",
+                coordinates: [6.0535, 80.2210],
+                population: "93,000",
+                category: "Tourist Hub",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "35 km/h", hotspots: ["Fort Area", "Galle Road"], last_update: "6 min ago" },
+                    weather: { temp: 29, condition: "Clear", humidity: 80, wind: "15 km/h", feels_like: 32, icon: "☀️" },
+                    air_quality: { aqi: 45, level: "Good", pm25: 15, pm10: 30, o3: 25, primary_pollutant: "None" },
+                    disaster: { level: "low", type: "coastal_erosion", message: "Minor coastal erosion reported", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Galle Fort Waste Station", type: "collection_center", capacity: 60, status: "active", wasteTypes: ["organic", "plastic", "glass"], processing: "18 tons/day"},
+                        {name: "Galle Recycling Center", type: "recycling", capacity: 55, status: "active", recyclingRate: "40%", processing: "10 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "250 tons", recyclingRate: "40%", collectionCoverage: "90%", landfillUsage: "35%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Galle Fort Area", completion: "80%", vehicles: 3, time: "morning"},
+                        {type: "recycling", status: "active", materials: ["Glass", "Plastic"], rate: "40%", output: "6 tons/day"}
+                    ]
+                }
+            },
+            "Matara": {
+                province: "southern",
+                coordinates: [5.9550, 80.5550],
+                population: "76,000",
+                category: "Coastal City",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "38 km/h", hotspots: ["City Center"], last_update: "9 min ago" },
+                    weather: { temp: 30, condition: "Sunny", humidity: 78, wind: "14 km/h", feels_like: 34, icon: "☀️" },
+                    air_quality: { aqi: 50, level: "Moderate", pm25: 20, pm10: 40, o3: 28, primary_pollutant: "PM2.5" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Matara Waste Collection", type: "collection_center", capacity: 50, status: "active", wasteTypes: ["organic", "plastic"], processing: "15 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "200 tons", recyclingRate: "25%", collectionCoverage: "75%", landfillUsage: "40%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Matara Town", completion: "70%", vehicles: 2, time: "morning"},
+                        {type: "beach_cleanup", status: "completed", teams: 1, completion: "100%", time: "morning"}
+                    ]
+                }
+            },
+            "Hambantota": {
+                province: "southern",
+                coordinates: [6.1248, 81.1186],
+                population: "42,000",
+                category: "Port City",
+                realtime: {
+                    traffic: { level: "free", average_speed: "50 km/h", hotspots: [], last_update: "12 min ago" },
+                    weather: { temp: 32, condition: "Clear", humidity: 75, wind: "18 km/h", feels_like: 36, icon: "☀️" },
+                    air_quality: { aqi: 60, level: "Moderate", pm25: 25, pm10: 45, o3: 30, primary_pollutant: "PM10" },
+                    disaster: { level: "medium", type: "drought", message: "Water conservation advised", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Hambantota Waste Center", type: "collection_center", capacity: 35, status: "active", wasteTypes: ["organic", "plastic"], processing: "8 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "120 tons", recyclingRate: "20%", collectionCoverage: "70%", landfillUsage: "35%"},
+                    ongoing: [
+                        {type: "collection", status: "scheduled", route: "Hambantota Port", completion: "0%", vehicles: 2, start_time: "10:00"},
+                        {type: "water_conservation", status: "active", measures: ["Reduced collection"], reason: "Drought"}
+                    ]
+                }
+            },
+
+            // Northern Province (4 cities)
+            "Jaffna": {
+                province: "northern",
+                coordinates: [9.6615, 80.0255],
+                population: "88,138",
+                category: "Northern Capital",
+                realtime: {
+                    traffic: { level: "free", average_speed: "45 km/h", hotspots: [], last_update: "15 min ago" },
+                    weather: { temp: 34, condition: "Sunny", humidity: 65, wind: "18 km/h", feels_like: 38, icon: "☀️" },
+                    air_quality: { aqi: 85, level: "Moderate", pm25: 35, pm10: 65, o3: 35, primary_pollutant: "PM2.5" },
+                    disaster: { level: "medium", type: "drought", message: "Water conservation measures active", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Jaffna Waste Management Center", type: "collection_center", capacity: 55, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "20 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "300 tons", recyclingRate: "30%", collectionCoverage: "80%", landfillUsage: "50%"},
+                    ongoing: [
+                        {type: "collection", status: "completed", route: "Jaffna City", completion: "100%", vehicles: 2, time: "morning"},
+                        {type: "processing", status: "operational", capacity: "55%", shift: "Completed"}
+                    ]
+                }
+            },
+            "Kilinochchi": {
+                province: "northern",
+                coordinates: [9.3964, 80.3989],
+                population: "25,000",
+                category: "Agricultural Hub",
+                realtime: {
+                    traffic: { level: "free", average_speed: "55 km/h", hotspots: [], last_update: "20 min ago" },
+                    weather: { temp: 35, condition: "Clear", humidity: 60, wind: "15 km/h", feels_like: 39, icon: "☀️" },
+                    air_quality: { aqi: 70, level: "Moderate", pm25: 30, pm10: 55, o3: 32, primary_pollutant: "PM10" },
+                    disaster: { level: "high", type: "drought", message: "Severe water shortage", alert_level: "red" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Kilinochchi Waste Station", type: "collection_center", capacity: 30, status: "active", wasteTypes: ["organic", "plastic"], processing: "6 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "80 tons", recyclingRate: "15%", collectionCoverage: "60%", landfillUsage: "40%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Kilinochchi Town", completion: "45%", vehicles: 1, time: "morning"},
+                        {type: "water_management", status: "critical", measures: ["Reduced waste processing"], reason: "Drought"}
+                    ]
+                }
+            },
+
+            // Eastern Province (3 cities)
+            "Batticaloa": {
+                province: "eastern",
+                coordinates: [7.7172, 81.6956],
+                population: "92,000",
+                category: "Coastal City",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "40 km/h", hotspots: ["City Center"], last_update: "8 min ago" },
+                    weather: { temp: 33, condition: "Sunny", humidity: 70, wind: "16 km/h", feels_like: 37, icon: "☀️" },
+                    air_quality: { aqi: 75, level: "Moderate", pm25: 32, pm10: 58, o3: 34, primary_pollutant: "PM2.5" },
+                    disaster: { level: "low", type: "coastal", message: "Normal conditions", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Batticaloa Waste Center", type: "collection_center", capacity: 45, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "15 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "220 tons", recyclingRate: "25%", collectionCoverage: "75%", landfillUsage: "45%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Batticaloa Town", completion: "60%", vehicles: 2, time: "morning"},
+                        {type: "coastal_cleanup", status: "scheduled", teams: 1, start_time: "14:00"}
+                    ]
+                }
+            },
+            "Trincomalee": {
+                province: "eastern",
+                coordinates: [8.5874, 81.2152],
+                population: "55,000",
+                category: "Port City",
+                realtime: {
+                    traffic: { level: "free", average_speed: "48 km/h", hotspots: [], last_update: "12 min ago" },
+                    weather: { temp: 32, condition: "Clear", humidity: 72, wind: "14 km/h", feels_like: 36, icon: "☀️" },
+                    air_quality: { aqi: 55, level: "Moderate", pm25: 22, pm10: 42, o3: 28, primary_pollutant: "None" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Trincomalee Waste Station", type: "collection_center", capacity: 40, status: "active", wasteTypes: ["organic", "plastic"], processing: "10 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "180 tons", recyclingRate: "20%", collectionCoverage: "70%", landfillUsage: "35%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Trinco Port", completion: "40%", vehicles: 2, time: "morning"},
+                        {type: "harbor_cleanup", status: "active", teams: 1, completion: "30%"}
+                    ]
+                }
+            },
+
+            // North Western Province (3 cities)
+            "Kurunegala": {
+                province: "north-western",
+                coordinates: [7.4833, 80.3667],
+                population: "30,000",
+                category: "District Capital",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "35 km/h", hotspots: ["City Center"], last_update: "7 min ago" },
+                    weather: { temp: 31, condition: "Partly Cloudy", humidity: 76, wind: "10 km/h", feels_like: 34, icon: "⛅" },
+                    air_quality: { aqi: 80, level: "Moderate", pm25: 35, pm10: 60, o3: 33, primary_pollutant: "PM2.5" },
+                    disaster: { level: "none", type: null, message: "No active alerts", alert_level: "green" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Kurunegala Waste Center", type: "collection_center", capacity: 60, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "18 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "350 tons", recyclingRate: "28%", collectionCoverage: "78%", landfillUsage: "42%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Kurunegala Town", completion: "55%", vehicles: 3, time: "morning"},
+                        {type: "processing", status: "operational", capacity: "60%", efficiency: "90%"}
+                    ]
+                }
+            },
+            "Puttalam": {
+                province: "north-western",
+                coordinates: [8.0333, 79.8333],
+                population: "45,000",
+                category: "Coastal Town",
+                realtime: {
+                    traffic: { level: "free", average_speed: "42 km/h", hotspots: [], last_update: "14 min ago" },
+                    weather: { temp: 33, condition: "Clear", humidity: 74, wind: "16 km/h", feels_like: 37, icon: "☀️" },
+                    air_quality: { aqi: 65, level: "Moderate", pm25: 28, pm10: 50, o3: 30, primary_pollutant: "PM2.5" },
+                    disaster: { level: "low", type: "salt_water", message: "Salt water intrusion reported", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Puttalam Waste Station", type: "collection_center", capacity: 40, status: "active", wasteTypes: ["organic", "plastic"], processing: "12 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "200 tons", recyclingRate: "22%", collectionCoverage: "72%", landfillUsage: "38%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Puttalam Town", completion: "50%", vehicles: 2, time: "morning"},
+                        {type: "salt_affected", status: "monitoring", measures: ["Special handling"], reason: "Salt water"}
+                    ]
+                }
+            },
+
+            // North Central Province (2 cities)
+            "Anuradhapura": {
+                province: "north-central",
+                coordinates: [8.3114, 80.4037],
+                population: "63,000",
+                category: "Ancient Capital",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "38 km/h", hotspots: ["Sacred City"], last_update: "9 min ago" },
+                    weather: { temp: 34, condition: "Sunny", humidity: 68, wind: "12 km/h", feels_like: 38, icon: "☀️" },
+                    air_quality: { aqi: 70, level: "Moderate", pm25: 30, pm10: 55, o3: 32, primary_pollutant: "PM10" },
+                    disaster: { level: "high", type: "drought", message: "Severe drought conditions", alert_level: "red" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Anuradhapura Waste Management", type: "collection_center", capacity: 50, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "15 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "280 tons", recyclingRate: "25%", collectionCoverage: "76%", landfillUsage: "48%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Sacred City Area", completion: "65%", vehicles: 3, time: "morning"},
+                        {type: "drought_measures", status: "critical", measures: ["Water recycling", "Reduced processing"], reason: "Drought"}
+                    ]
+                }
+            },
+            "Polonnaruwa": {
+                province: "north-central",
+                coordinates: [7.9403, 81.0188],
+                population: "15,000",
+                category: "Heritage City",
+                realtime: {
+                    traffic: { level: "free", average_speed: "50 km/h", hotspots: [], last_update: "16 min ago" },
+                    weather: { temp: 35, condition: "Clear", humidity: 65, wind: "14 km/h", feels_like: 39, icon: "☀️" },
+                    air_quality: { aqi: 60, level: "Moderate", pm25: 25, pm10: 45, o3: 30, primary_pollutant: "PM2.5" },
+                    disaster: { level: "medium", type: "drought", message: "Water conservation active", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Polonnaruwa Waste Center", type: "collection_center", capacity: 35, status: "active", wasteTypes: ["organic", "plastic"], processing: "8 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "160 tons", recyclingRate: "20%", collectionCoverage: "68%", landfillUsage: "40%"},
+                    ongoing: [
+                        {type: "collection", status: "scheduled", route: "Polonnaruwa Town", completion: "0%", vehicles: 2, start_time: "09:00"},
+                        {type: "water_conservation", status: "active", measures: ["Limited water use"], reason: "Drought"}
+                    ]
+                }
+            },
+
+            // Uva Province (2 cities)
+            "Badulla": {
+                province: "uva",
+                coordinates: [6.9934, 81.0550],
+                population: "48,000",
+                category: "Hill City",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "32 km/h", hotspots: ["City Center"], last_update: "8 min ago" },
+                    weather: { temp: 22, condition: "Cloudy", humidity: 85, wind: "7 km/h", feels_like: 23, icon: "☁️" },
+                    air_quality: { aqi: 40, level: "Good", pm25: 18, pm10: 35, o3: 22, primary_pollutant: "None" },
+                    disaster: { level: "medium", type: "landslide", message: "Landslide risk in hilly areas", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Badulla Waste Collection", type: "collection_center", capacity: 45, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "12 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "190 tons", recyclingRate: "23%", collectionCoverage: "74%", landfillUsage: "35%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Badulla Town", completion: "70%", vehicles: 2, time: "morning"},
+                        {type: "landslide_monitoring", status: "active", teams: 1, monitoring: "High risk areas"}
+                    ]
+                }
+            },
+            "Monaragala": {
+                province: "uva",
+                coordinates: [6.8728, 81.3507],
+                population: "12,000",
+                category: "Rural Hub",
+                realtime: {
+                    traffic: { level: "free", average_speed: "55 km/h", hotspots: [], last_update: "18 min ago" },
+                    weather: { temp: 30, condition: "Clear", humidity: 70, wind: "10 km/h", feels_like: 33, icon: "☀️" },
+                    air_quality: { aqi: 50, level: "Moderate", pm25: 22, pm10: 40, o3: 26, primary_pollutant: "PM2.5" },
+                    disaster: { level: "low", type: "drought", message: "Minor drought conditions", alert_level: "yellow" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Monaragala Waste Station", type: "collection_center", capacity: 30, status: "active", wasteTypes: ["organic", "plastic"], processing: "6 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "110 tons", recyclingRate: "18%", collectionCoverage: "62%", landfillUsage: "30%"},
+                    ongoing: [
+                        {type: "collection", status: "in_progress", route: "Monaragala Town", completion: "40%", vehicles: 1, time: "morning"},
+                        {type: "drought_management", status: "active", measures: ["Water efficient"], reason: "Drought"}
+                    ]
+                }
+            },
+
+            // Sabaragamuwa Province (3 cities)
+            "Ratnapura": {
+                province: "sabaragamuwa",
+                coordinates: [6.6828, 80.3992],
+                population: "47,000",
+                category: "Gem City",
+                realtime: {
+                    traffic: { level: "moderate", average_speed: "32 km/h", hotspots: ["City Center"], last_update: "6 min ago" },
+                    weather: { temp: 27, condition: "Rainy", humidity: 90, wind: "6 km/h", feels_like: 30, icon: "🌧️" },
+                    air_quality: { aqi: 55, level: "Moderate", pm25: 20, pm10: 45, o3: 28, primary_pollutant: "PM10" },
+                    disaster: { level: "high", type: "flood", message: "Flood warning: Heavy rainfall expected", alert_level: "red" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Ratnapura Gem City Waste", type: "collection_center", capacity: 55, status: "active", wasteTypes: ["organic", "plastic", "paper"], processing: "18 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "240 tons", recyclingRate: "26%", collectionCoverage: "77%", landfillUsage: "42%"},
+                    ongoing: [
+                        {type: "collection", status: "delayed", route: "Ratnapura Town", completion: "30%", vehicles: 2, delay_reason: "Heavy rain"},
+                        {type: "emergency", status: "active", type: "flood_preparation", teams: 3, measures: ["Drain cleaning"]}
+                    ]
+                }
+            },
+            "Kegalle": {
+                province: "sabaragamuwa",
+                coordinates: [7.2524, 80.3464],
+                population: "18,000",
+                category: "Market Town",
+                realtime: {
+                    traffic: { level: "heavy", average_speed: "25 km/h", hotspots: ["Main Road"], last_update: "5 min ago" },
+                    weather: { temp: 28, condition: "Rainy", humidity: 88, wind: "8 km/h", feels_like: 31, icon: "🌧️" },
+                    air_quality: { aqi: 60, level: "Moderate", pm25: 25, pm10: 48, o3: 30, primary_pollutant: "PM2.5" },
+                    disaster: { level: "medium", type: "flood", message: "Flood risk in low areas", alert_level: "orange" }
+                },
+                waste: {
+                    centers: [
+                        {name: "Kegalle Waste Center", type: "collection_center", capacity: 40, status: "active", wasteTypes: ["organic", "plastic"], processing: "10 tons/day"}
+                    ],
+                    stats: {totalWastePerDay: "170 tons", recyclingRate: "21%", collectionCoverage: "71%", landfillUsage: "38%"},
+                    ongoing: [
+                        {type: "collection", status: "delayed", route: "Kegalle Town", completion: "25%", vehicles: 2, delay_reason: "Rain"},
+                        {type: "flood_prevention", status: "active", teams: 2, measures: ["Drain maintenance"]}
+                    ]
+                }
+            }
+        };
+
+        // Utility Functions
+        function showLoading(show, text = "Loading real-time data...") {
+            const loadingEl = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            loadingText.textContent = text;
+            loadingEl.style.display = show ? 'block' : 'none';
+        }
+
+        function showMessage(message, duration = 3000) {
+            const statusBar = document.getElementById('location-status');
+            const originalText = statusBar.textContent;
+            statusBar.textContent = message;
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    statusBar.textContent = originalText;
+                }, duration);
+            }
+        }
+
+        // Populate City Grid with filtering
+        function populateCityGrid(filter = 'all') {
+            const cityGrid = document.getElementById('city-grid');
+            cityGrid.innerHTML = '';
+            
+            let filteredCities = Object.keys(CITY_DATA);
+            
+            if (filter !== 'all') {
+                filteredCities = filteredCities.filter(city => CITY_DATA[city].province === filter);
+            }
+            
+            // Sort alphabetically
+            filteredCities.sort();
+            
+            filteredCities.forEach(city => {
+                const cityData = CITY_DATA[city];
+                const btn = document.createElement('button');
+                btn.className = 'city-btn';
+                
+                const disasterLevel = cityData.realtime.disaster.level;
+                let statusDot = '';
+                if (disasterLevel === 'critical' || disasterLevel === 'high') {
+                    statusDot = '<span class="city-status-dot" style="background: #F44336;"></span>';
+                } else if (disasterLevel === 'medium') {
+                    statusDot = '<span class="city-status-dot" style="background: #FF9800;"></span>';
+                } else {
+                    statusDot = '<span class="city-status-dot" style="background: #4CAF50;"></span>';
+                }
+                
+                btn.innerHTML = `
+                    ${statusDot}
+                    <div style="font-size: 12px; font-weight: bold;">${city}</div>
+                    <div style="font-size: 10px; color: #666;">${cityData.category}</div>
+                    <div class="province-badge province-${cityData.province}" style="margin-top: 3px;">
+                        ${cityData.province.charAt(0).toUpperCase() + cityData.province.slice(1)}
+                    </div>
+                `;
+                btn.onclick = () => selectCity(city);
+                cityGrid.appendChild(btn);
+            });
+            
+            // Update counters
+            document.getElementById('city-count').textContent = `${filteredCities.length} cities`;
+            document.getElementById('total-cities').textContent = Object.keys(CITY_DATA).length;
+            
+            // Count active alerts
+            const activeAlerts = Object.values(CITY_DATA).filter(city => 
+                city.realtime.disaster.level !== 'none' && city.realtime.disaster.level !== 'low'
+            ).length;
+            document.getElementById('active-alerts').textContent = activeAlerts;
+            
+            // Count ongoing operations
+            const ongoingOps = Object.values(CITY_DATA).reduce((total, city) => 
+                total + city.waste.ongoing.length, 0
+            );
+            document.getElementById('ongoing-ops').textContent = ongoingOps;
+            document.getElementById('active-operations').textContent = ongoingOps;
+        }
+
+        // Filter cities by province
+        function filterCities(province) {
+            appState.activeFilter = province;
+            
+            // Update province buttons
+            document.querySelectorAll('.province-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.toLowerCase() === province || 
+                    (province === 'all' && btn.textContent === 'All')) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            populateCityGrid(province);
+            showMessage(`Showing ${province === 'all' ? 'all' : province} cities`, 2000);
+        }
+
+        // Select City
+        function selectCity(cityName) {
+            const cityData = CITY_DATA[cityName];
+            if (!cityData) return;
+            
+            showLoading(true, `Loading ${cityName} real-time data...`);
+            
+            // Update UI
+            document.querySelectorAll('.city-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.querySelector('div').textContent === cityName) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update map view
+            map.setView(cityData.coordinates, 13);
+            
+            // Clear existing markers
+            appState.markers.clearLayers();
+            appState.disasterMarkers.clearLayers();
+            
+            // Add city marker
+            addCityMarker(cityName, cityData);
+            
+            // Show traffic for this area
+            showTrafficRoutes(cityData.coordinates[0], cityData.coordinates[1], 15);
+            
+            // Update real-time data panel
+            showRealtimeData(cityName);
+            
+            // Update waste panel
+            showWastePanel(cityName);
+            
+            // Update state
+            appState.currentCity = cityName;
+            
+            setTimeout(() => {
+                showLoading(false);
+                showMessage(`Loaded real-time monitoring for ${cityName}`, 2000);
+            }, 500);
+        }
+
+        // Add city marker with disaster indicator
+        function addCityMarker(cityName, cityData) {
+            const disasterLevel = cityData.realtime.disaster.level;
+            const disasterColor = getDisasterColor(disasterLevel);
+            const disasterIcon = disasterLevel !== 'none' ? '⚠️ ' : '';
+            
+            const html = `
+                <div style="
+                    background: ${disasterColor};
+                    color: white;
+                    width: 45px;
+                    height: 45px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 22px;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                ">
+                    ${disasterIcon}🏙️
+                </div>
+            `;
+            
+            const customIcon = L.divIcon({
+                html: html,
+                iconSize: [45, 45],
+                className: 'city-marker'
+            });
+            
+            const marker = L.marker(cityData.coordinates, { icon: customIcon })
+                .addTo(appState.markers)
+                .bindPopup(`
+                    <div style="padding: 10px; min-width: 280px;">
+                        <h3 style="margin: 0 0 10px 0; color: ${disasterColor};">
+                            ${disasterLevel !== 'none' ? '⚠️ ' : ''}${cityName}
+                        </h3>
+                        <div style="margin: 5px 0;">
+                            <strong>Province:</strong> ${cityData.province.charAt(0).toUpperCase() + cityData.province.slice(1)}
+                        </div>
+                        <div style="margin: 5px 0;">
+                            <strong>Population:</strong> ${cityData.population}
+                        </div>
+                        <div style="margin: 5px 0;">
+                            <strong>Traffic:</strong> ${cityData.realtime.traffic.level.toUpperCase()} (${cityData.realtime.traffic.average_speed})
+                        </div>
+                        <div style="margin: 5px 0;">
+                            <strong>Weather:</strong> ${cityData.realtime.weather.temp}°C, ${cityData.realtime.weather.condition}
+                        </div>
+                        <div style="margin: 5px 0;">
+                            <strong>Air Quality:</strong> ${cityData.realtime.air_quality.level}
+                        </div>
+                        ${disasterLevel !== 'none' ? `
+                        <div style="margin: 5px 0; padding: 5px; background: ${disasterColor}20; border-radius: 3px;">
+                            <strong>⚠️ ${disasterLevel.toUpperCase()} Alert:</strong> ${cityData.realtime.disaster.message}
+                        </div>
+                        ` : ''}
+                        <div style="margin: 5px 0; padding: 5px; background: #E8F5E9; border-radius: 3px;">
+                            <strong>🗑️ Waste Ops:</strong> ${cityData.waste.ongoing.length} ongoing
+                        </div>
+                        <button onclick="selectCity('${cityName}')" 
+                                style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; width: 100%;">
+                            <i class="fas fa-desktop"></i> Open Dashboard
+                        </button>
+                    </div>
+                `);
+            
+            // Add disaster area if applicable
+            if (disasterLevel !== 'none') {
+                addDisasterArea(cityName, cityData);
+            }
+            
+            return marker;
+        }
+
+        function getDisasterColor(level) {
+            switch(level) {
+                case 'none': return '#4CAF50';
+                case 'low': return '#FFC107';
+                case 'medium': return '#FF9800';
+                case 'high': return '#F44336';
+                case 'critical': return '#9C27B0';
+                default: return '#4CAF50';
+            }
+        }
+
+        function addDisasterArea(cityName, cityData) {
+            const disaster = cityData.realtime.disaster;
+            if (disaster.level === 'none') return;
+            
+            const radius = getDisasterRadius(disaster.level);
+            const color = getDisasterColor(disaster.level);
+            
+            L.circle(cityData.coordinates, {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.1,
+                radius: radius * 1000
+            }).addTo(appState.disasterMarkers);
+        }
+
+        function getDisasterRadius(level) {
+            switch(level) {
+                case 'low': return 2;
+                case 'medium': return 5;
+                case 'high': return 10;
+                case 'critical': return 20;
+                default: return 0;
+            }
+        }
+
+        // Show real-time data panel
+        function showRealtimeData(cityName) {
+            const cityData = CITY_DATA[cityName];
+            if (!cityData) return;
+            
+            const panel = document.getElementById('realtime-panel');
+            const content = document.getElementById('realtime-content');
+            
+            const realtime = cityData.realtime;
+            const trafficColor = getTrafficColor(realtime.traffic.level);
+            const aqiColor = getAQIColor(realtime.air_quality.level);
+            const disasterColor = getDisasterColor(realtime.disaster.level);
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid ${trafficColor};">
+                    <h2 style="color: ${trafficColor}; margin: 0 0 10px 0;">
+                        <span class="live-indicator"></span> ${cityName} - Live Monitoring
+                    </h2>
+                    <p style="color: #666; margin: 0; font-size: 12px;">
+                        <i class="fas fa-clock"></i> Updated: ${new Date().toLocaleTimeString()}
+                    </p>
+                </div>
+                
+                <!-- Disaster Alert -->
+                ${realtime.disaster.level !== 'none' ? `
+                <div class="disaster-alert alert-${realtime.disaster.level}">
+                    <i class="fas fa-exclamation-triangle"></i> ${realtime.disaster.level.toUpperCase()} ALERT<br>
+                    <small>${realtime.disaster.message}</small>
+                </div>
+                ` : ''}
+                
+                <!-- City Info -->
+                <div class="data-section">
+                    <h4><i class="fas fa-city" style="color: ${disasterColor};"></i> City Information</h4>
+                    <div class="info-item">
+                        <strong>Province:</strong> ${cityData.province.charAt(0).toUpperCase() + cityData.province.slice(1)}
+                    </div>
+                    <div class="info-item">
+                        <strong>Population:</strong> ${cityData.population}
+                    </div>
+                    <div class="info-item">
+                        <strong>Category:</strong> ${cityData.category}
+                    </div>
+                </div>
+                
+                <!-- Traffic Section -->
+                <div class="data-section">
+                    <h4><i class="fas fa-traffic-light" style="color: ${trafficColor};"></i> Live Traffic</h4>
+                    <div class="info-item" style="border-left-color: ${trafficColor};">
+                        <strong>Condition:</strong> ${realtime.traffic.level.toUpperCase()}
+                        <div style="display: flex; align-items: center; margin-top: 5px;">
+                            <div style="flex: 1; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+                                <div style="height: 100%; width: ${getTrafficPercentage(realtime.traffic.level)}%; background: ${trafficColor};"></div>
+                            </div>
+                            <span style="margin-left: 10px; font-size: 12px;">${realtime.traffic.average_speed}</span>
+                        </div>
+                    </div>
+                    ${realtime.traffic.hotspots.length > 0 ? `
+                    <div class="info-item warning">
+                        <strong>Hotspots:</strong><br>
+                        ${realtime.traffic.hotspots.map(hotspot => `• ${hotspot}`).join('<br>')}
+                    </div>
+                    ` : '<div class="info-item success">No traffic hotspots reported</div>'}
+                    <div class="info-item info">
+                        <strong>Last Update:</strong> ${realtime.traffic.last_update}
+                    </div>
+                </div>
+                
+                <!-- Weather Section -->
+                <div class="data-section">
+                    <h4><i class="fas fa-sun" style="color: #FF9800;"></i> Current Weather</h4>
+                    <div class="weather-icon">
+                        ${realtime.weather.icon} ${realtime.weather.condition}
+                    </div>
+                    <div class="info-item ${realtime.weather.temp > 32 ? 'warning' : 'info'}">
+                        <strong>Temperature:</strong> ${realtime.weather.temp}°C
+                        <small style="color: #666;"> (Feels like ${realtime.weather.feels_like}°C)</small>
+                    </div>
+                    <div class="info-item">
+                        <strong>Humidity:</strong> ${realtime.weather.humidity}%
+                    </div>
+                    <div class="info-item">
+                        <strong>Wind:</strong> ${realtime.weather.wind}
+                    </div>
+                </div>
+                
+                <!-- Air Quality Section -->
+                <div class="data-section">
+                    <h4><i class="fas fa-wind" style="color: ${aqiColor};"></i> Air Quality Index</h4>
+                    <div class="info-item" style="border-left-color: ${aqiColor};">
+                        <strong>AQI:</strong> ${realtime.air_quality.aqi} - ${realtime.air_quality.level}
+                        <div class="aqi-gauge">
+                            <div class="aqi-marker" style="left: ${getAQIPercentage(realtime.air_quality.aqi)}%;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: #666; text-align: center;">
+                            Good (0-50) — Hazardous (301-500)
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <strong>PM2.5:</strong> ${realtime.air_quality.pm25} μg/m³
+                    </div>
+                    <div class="info-item">
+                        <strong>PM10:</strong> ${realtime.air_quality.pm10} μg/m³
+                    </div>
+                    <div class="info-item">
+                        <strong>Ozone:</strong> ${realtime.air_quality.o3} ppb
+                    </div>
+                    <div class="info-item ${realtime.air_quality.primary_pollutant !== 'None' ? 'warning' : 'success'}">
+                        <strong>Primary Pollutant:</strong> ${realtime.air_quality.primary_pollutant}
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="data-section">
+                    <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                        <button class="quick-action-btn primary" onclick="refreshCityData('${cityName}')">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="quick-action-btn ${realtime.disaster.level !== 'none' ? 'danger' : 'success'}" 
+                                onclick="showDisasterDetails('${cityName}')">
+                            <i class="fas fa-exclamation-triangle"></i> Alert Details
+                        </button>
+                        <button class="quick-action-btn primary" onclick="getCityDirections('${cityName}')">
+                            <i class="fas fa-directions"></i> Directions
+                        </button>
+                        <button class="quick-action-btn success" onclick="subscribeToAlerts('${cityName}')">
+                            <i class="fas fa-bell"></i> Subscribe
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Data Sources -->
+                <div style="margin-top: 15px; font-size: 10px; color: #666; text-align: center;">
+                    <i class="fas fa-database"></i> Sources: Meteorological Dept • Road Development Authority • Central Environmental Authority
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            panel.style.display = 'block';
+        }
+
+        // Show waste management panel
+        function showWastePanel(cityName) {
+            const cityData = CITY_DATA[cityName];
+            if (!cityData) return;
+            
+            const panel = document.getElementById('waste-panel');
+            const content = document.getElementById('waste-content');
+            
+            const wasteData = cityData.waste;
+            const totalOperations = wasteData.ongoing.length;
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #4CAF50;">
+                    <h2 style="color: #4CAF50; margin: 0 0 10px 0;">
+                        🗑️ ${cityName} Waste Management
+                    </h2>
+                    <p style="color: #666; margin: 0; font-size: 12px;">
+                        <i class="fas fa-tasks"></i> ${totalOperations} ongoing operations
+                    </p>
+                </div>
+                
+                <!-- Waste Statistics -->
+                <div class="data-section">
+                    <h4><i class="fas fa-chart-bar"></i> Daily Statistics</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+                        <div style="padding: 10px; background: #E8F5E9; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold;">${wasteData.stats.totalWastePerDay}</div>
+                            <div style="font-size: 10px;">Daily Waste</div>
+                        </div>
+                        <div style="padding: 10px; background: #E3F2FD; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold;">${wasteData.stats.recyclingRate}</div>
+                            <div style="font-size: 10px;">Recycling Rate</div>
+                        </div>
+                        <div style="padding: 10px; background: #FFF3E0; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold;">${wasteData.stats.collectionCoverage}</div>
+                            <div style="font-size: 10px;">Collection</div>
+                        </div>
+                        <div style="padding: 10px; background: #F1F8E9; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold;">${wasteData.stats.landfillUsage}</div>
+                            <div style="font-size: 10px;">Landfill Usage</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Ongoing Operations -->
+                <div class="data-section">
+                    <h4><i class="fas fa-tasks"></i> Ongoing Operations (${totalOperations})</h4>
+            `;
+            
+            wasteData.ongoing.forEach((operation, index) => {
+                const statusColor = operation.status === 'in_progress' ? 'info' : 
+                                   operation.status === 'completed' ? 'success' : 
+                                   operation.status === 'delayed' ? 'warning' : 
+                                   operation.status === 'critical' ? 'danger' : 'info';
+                
+                const progressColor = operation.time === 'morning' ? 'progress-morning' :
+                                    operation.time === 'afternoon' ? 'progress-afternoon' :
+                                    operation.time === 'evening' ? 'progress-evening' :
+                                    'progress-night';
+                
+                html += `
+                    <div class="info-item ${statusColor}">
+                        <strong>${operation.type.replace('_', ' ').toUpperCase()}</strong>
+                        <div style="display: flex; align-items: center; margin-top: 5px;">
+                            <span style="flex: 1; font-size: 11px; font-weight: bold;">${operation.status.replace('_', ' ').toUpperCase()}</span>
+                            ${operation.completion ? `
+                            <span style="font-size: 11px; background: #e0e0e0; padding: 2px 8px; border-radius: 10px; font-weight: bold;">
+                                ${operation.completion}
+                            </span>
+                            ` : ''}
+                        </div>
+                        ${operation.route ? `
+                        <div style="font-size: 11px; margin-top: 5px;">
+                            <i class="fas fa-route"></i> ${operation.route}
+                        </div>
+                        ` : ''}
+                        ${operation.vehicles ? `
+                        <div style="font-size: 11px; color: #666;">
+                            <i class="fas fa-truck"></i> ${operation.vehicles} vehicles
+                        </div>
+                        ` : ''}
+                        ${operation.completion && operation.completion.includes('%') ? `
+                        <div class="collection-progress">
+                            <div class="progress-fill ${progressColor}" 
+                                 style="width: ${parseInt(operation.completion)}%;"></div>
+                        </div>
+                        ` : ''}
+                        ${operation.delay_reason ? `
+                        <div style="font-size: 11px; color: #F44336; margin-top: 5px;">
+                            <i class="fas fa-exclamation-circle"></i> Delay: ${operation.delay_reason}
+                        </div>
+                        ` : ''}
+                        ${operation.measures ? `
+                        <div style="font-size: 11px; color: #FF9800; margin-top: 5px;">
+                            <i class="fas fa-tools"></i> Measures: ${Array.isArray(operation.measures) ? operation.measures.join(', ') : operation.measures}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            // Collection Facilities
+            if (wasteData.centers && wasteData.centers.length > 0) {
+                html += `
+                    <div class="data-section">
+                        <h4><i class="fas fa-trash-alt"></i> Collection Facilities</h4>
+                `;
+                
+                wasteData.centers.forEach(center => {
+                    const capacityColor = center.capacity < 50 ? 'success' : 
+                                         center.capacity < 80 ? 'warning' : 'danger';
+                    const icon = center.type === 'recycling' ? '♻️' : 
+                                center.type === 'transfer' ? '🚚' : '🗑️';
+                    
+                    html += `
+                        <div class="info-item ${capacityColor}">
+                            <strong>${icon} ${center.name}</strong><br>
+                            <small>Type: ${center.type.replace('_', ' ')} • Status: ${center.status.toUpperCase()} • Capacity: ${center.capacity}%</small>
+                            ${center.processing ? `
+                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                                <i class="fas fa-industry"></i> Processing: ${center.processing}
+                            </div>
+                            ` : ''}
+                            ${center.recyclingRate ? `
+                            <div style="font-size: 11px; color: #4CAF50;">
+                                <i class="fas fa-recycle"></i> Recycling: ${center.recyclingRate}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            }
+            
+            // Collection Schedule
+            const now = new Date();
+            const currentHour = now.getHours();
+            let currentShift = "Morning (6AM-12PM)";
+            if (currentHour >= 12 && currentHour < 18) currentShift = "Afternoon (12PM-6PM)";
+            if (currentHour >= 18 || currentHour < 6) currentShift = "Night (6PM-6AM)";
+            
+            html += `
+                <div class="data-section">
+                    <h4><i class="fas fa-calendar-alt"></i> Current Shift: ${currentShift}</h4>
+                    <div style="padding: 10px; background: #E3F2FD; border-radius: 5px; font-size: 12px;">
+                        <strong>Morning Shift:</strong> 6:00 AM - 12:00 PM<br>
+                        <strong>Afternoon Shift:</strong> 12:00 PM - 6:00 PM<br>
+                        <strong>Night Shift:</strong> 6:00 PM - 6:00 AM<br>
+                        <strong>Emergency:</strong> 24/7 on call
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="data-section">
+                    <h4><i class="fas fa-bolt"></i> Waste Management</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                        <button class="quick-action-btn primary" onclick="reportWasteIssue('${cityName}')">
+                            <i class="fas fa-flag"></i> Report Issue
+                        </button>
+                        <button class="quick-action-btn success" onclick="schedulePickup('${cityName}')">
+                            <i class="fas fa-calendar"></i> Schedule Pickup
+                        </button>
+                        <button class="quick-action-btn primary" onclick="viewWasteAnalytics('${cityName}')">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </button>
+                        <button class="quick-action-btn success" onclick="downloadCityReport('${cityName}')">
+                            <i class="fas fa-download"></i> Download Report
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Emergency Contacts -->
+                <div style="margin-top: 15px; padding: 10px; background: #FFEBEE; border-radius: 5px; font-size: 11px;">
+                    <strong><i class="fas fa-phone"></i> Emergency Contacts:</strong><br>
+                    • Waste Emergency: 011-2345678<br>
+                    • Environmental Police: 011-2345679<br>
+                    • Disaster Management: 117<br>
+                    • Municipal Council: ${cityName === 'Colombo' ? '011-2694231' : 'Local Council'}
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            panel.style.display = 'block';
+        }
+
+        // Helper functions
+        function getTrafficColor(level) {
+            switch(level) {
+                case 'free': return '#00c853';
+                case 'moderate': return '#ffd600';
+                case 'heavy': return '#ff9100';
+                case 'congested': return '#d50000';
+                default: return '#666';
+            }
+        }
+
+        function getTrafficPercentage(level) {
+            switch(level) {
+                case 'free': return 25;
+                case 'moderate': return 50;
+                case 'heavy': return 75;
+                case 'congested': return 100;
+                default: return 0;
+            }
+        }
+
+        function getAQIColor(level) {
+            switch(level) {
+                case 'Good': return '#4CAF50';
+                case 'Moderate': return '#FFC107';
+                case 'Unhealthy for Sensitive': return '#FF9800';
+                case 'Unhealthy': return '#F44336';
+                case 'Very Unhealthy': return '#9C27B0';
+                case 'Hazardous': return '#795548';
+                default: return '#666';
+            }
+        }
+
+        function getAQIPercentage(aqi) {
+            return Math.min((aqi / 500) * 100, 100);
+        }
+
+        // Traffic Functions
+        function showTrafficRoutes(lat, lon, radius = 10) {
+            appState.trafficRoutes.clearLayers();
+            appState.trafficData = [];
+            
+            document.getElementById('traffic-legend').style.display = 'block';
+            
+            // Simulate traffic routes
+            const trafficLevels = ['free', 'moderate', 'heavy', 'congested'];
+            
+            // Create radial lines from city center
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * 45) * Math.PI / 180;
+                const distance = 0.1;
+                const endLat = lat + Math.sin(angle) * distance;
+                const endLon = lon + Math.cos(angle) * distance;
+                
+                const trafficLevel = trafficLevels[Math.floor(Math.random() * trafficLevels.length)];
+                const color = getTrafficColor(trafficLevel);
+                
+                const polyline = L.polyline([[lat, lon], [endLat, endLon]], {
+                    color: color,
+                    weight: 6,
+                    opacity: 0.8,
+                    lineCap: 'round'
+                }).addTo(appState.trafficRoutes);
+                
+                polyline.bindPopup(`
+                    <div class="traffic-popup">
+                        <strong>Route from City Center</strong>
+                        <span class="level ${trafficLevel}">${trafficLevel.toUpperCase()}</span>
+                        <div style="margin-top: 5px;">
+                            Direction: ${getDirection(angle)}<br>
+                            Average Speed: ${getSpeedForTraffic(trafficLevel)} km/h
+                        </div>
+                    </div>
+                `);
+            }
+            
+            appState.isTrafficVisible = true;
+        }
+
+        function getDirection(angle) {
+            const directions = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
+            const index = Math.round(angle * 180 / Math.PI / 45) % 8;
+            return directions[index];
+        }
+
+        function getSpeedForTraffic(trafficLevel) {
+            switch(trafficLevel) {
+                case "free": return "60-80";
+                case "moderate": return "40-60";
+                case "heavy": return "20-40";
+                case "congested": return "0-20";
+                default: return "40-60";
+            }
+        }
+
+        // UI Control Functions
+        function toggleTraffic() {
+            const btn = document.getElementById('show-traffic-btn');
+            
+            if (appState.isTrafficVisible) {
+                appState.trafficRoutes.clearLayers();
+                btn.innerHTML = '<i class="fas fa-traffic-light"></i> Show Traffic';
+                btn.classList.remove('active');
+                document.getElementById('traffic-legend').style.display = 'none';
+                appState.isTrafficVisible = false;
+                showMessage('Traffic routes hidden', 2000);
+            } else {
+                if (appState.currentCity) {
+                    const cityData = CITY_DATA[appState.currentCity];
+                    showTrafficRoutes(cityData.coordinates[0], cityData.coordinates[1], 15);
+                } else {
+                    const center = map.getCenter();
+                    showTrafficRoutes(center.lat, center.lng);
+                }
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Traffic';
+                btn.classList.add('active');
+                showMessage('Traffic routes shown', 2000);
+            }
+        }
+
+        function refreshTraffic() {
+            if (!appState.isTrafficVisible) {
+                showMessage('Please show traffic first', 2000);
+                return;
+            }
+            
+            showMessage('Refreshing traffic data...', 2000);
+            appState.trafficRoutes.clearLayers();
+            
+            if (appState.currentCity) {
+                const cityData = CITY_DATA[appState.currentCity];
+                showTrafficRoutes(cityData.coordinates[0], cityData.coordinates[1], 15);
+            } else {
+                const center = map.getCenter();
+                showTrafficRoutes(center.lat, center.lng);
+            }
+        }
+
+        function showAllCities() {
+            map.setView([7.8731, 80.7718], 8);
+            appState.markers.clearLayers();
+            appState.currentCity = null;
+            
+            // Add all city markers
+            Object.keys(CITY_DATA).forEach(city => {
+                addCityMarker(city, CITY_DATA[city]);
+            });
+            
+            document.querySelectorAll('.city-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            closeRealtimePanel();
+            closeWastePanel();
+            
+            showMessage('Showing all 32 cities', 2000);
+        }
+
+        // Panel Management
+        function closeRealtimePanel() {
+            document.getElementById('realtime-panel').style.display = 'none';
+        }
+
+        function closeWastePanel() {
+            document.getElementById('waste-panel').style.display = 'none';
+        }
+
+        // Update timer and counters
+        function updateTimer() {
+            const now = new Date();
+            document.getElementById('server-time').textContent = now.toLocaleTimeString();
+            document.getElementById('last-updated').textContent = formatTime(now);
+            document.getElementById('update-timer').textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Update connected systems count
+            document.getElementById('connected-systems').textContent = Object.keys(CITY_DATA).length;
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        // Simulate real-time updates
+        function simulateRealTimeUpdates() {
+            const now = new Date();
+            
+            // Randomly update some city data
+            if (now.getSeconds() % 30 === 0) {
+                const cities = Object.keys(CITY_DATA);
+                const randomCity = cities[Math.floor(Math.random() * cities.length)];
+                
+                // Simulate traffic change
+                const trafficLevels = ['free', 'moderate', 'heavy', 'congested'];
+                const newTraffic = trafficLevels[Math.floor(Math.random() * trafficLevels.length)];
+                CITY_DATA[randomCity].realtime.traffic.level = newTraffic;
+                CITY_DATA[randomCity].realtime.traffic.last_update = "Just now";
+                
+                // Update waste operations
+                const wasteOps = CITY_DATA[randomCity].waste.ongoing;
+                wasteOps.forEach(op => {
+                    if (op.status === 'in_progress' && op.completion && op.completion.includes('%')) {
+                        const completion = parseInt(op.completion);
+                        if (completion < 100) {
+                            op.completion = Math.min(100, completion + Math.random() * 10) + '%';
+                        } else {
+                            op.status = 'completed';
+                        }
+                    }
+                });
+                
+                // Update current city display if selected
+                if (appState.currentCity === randomCity) {
+                    selectCity(randomCity);
+                }
+            }
+            
+            updateTimer();
+        }
+
+        // Action functions
+        function refreshCityData(cityName) {
+            showMessage(`Refreshing ${cityName} data...`, 2000);
+            selectCity(cityName);
+        }
+
+        function showDisasterDetails(cityName) {
+            const disaster = CITY_DATA[cityName].realtime.disaster;
+            alert(`DISASTER ALERT - ${cityName}\n\nLevel: ${disaster.level.toUpperCase()}\nType: ${disaster.type || 'None'}\nMessage: ${disaster.message}\n\nEmergency contacts:\n• Disaster Management: 117\n• Municipal Council: Local contact\n• Environmental Police: 011-2345679`);
+        }
+
+        function getCityDirections(cityName) {
+            const coords = CITY_DATA[cityName].coordinates;
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords[0]},${coords[1]}`, '_blank');
+        }
+
+        function subscribeToAlerts(cityName) {
+            alert(`Subscribed to alerts for ${cityName}!\n\nYou will receive notifications for:\n• Traffic updates\n• Weather warnings\n• Disaster alerts\n• Waste collection changes\n• Air quality updates`);
+        }
+
+        function reportWasteIssue(cityName) {
+            const issue = prompt(`Report waste issue in ${cityName}:\n\n1. Missed collection\n2. Overflowing bins\n3. Illegal dumping\n4. Recycling contamination\n5. Hazardous waste\n6. Other\n\nEnter issue number:`);
+            if (issue) {
+                alert(`Issue reported in ${cityName}!\nReference #: WM${Date.now().toString().slice(-6)}\n\nA team will be dispatched within 2 hours.`);
+            }
+        }
+
+        function schedulePickup(cityName) {
+            const date = prompt(`Schedule pickup in ${cityName}:\n\nEnter preferred date (DD/MM/YYYY):`);
+            if (date) {
+                alert(`Pickup scheduled for ${date} in ${cityName}.\nConfirmation sent to your registered contact.\n\nPlease have waste ready by 6:00 AM on collection day.`);
+            }
+        }
+
+        function viewWasteAnalytics(cityName) {
+            alert(`Opening waste analytics dashboard for ${cityName}...`);
+            setTimeout(() => {
+                window.open('#', '_blank');
+            }, 500);
+        }
+
+        function downloadCityReport(cityName) {
+            const cityData = CITY_DATA[cityName];
+            const report = `
+                SMART CITY REPORT - ${cityName.toUpperCase()}
+                ================================================
+                
+                Generated: ${new Date().toLocaleString()}
+                Province: ${cityData.province.charAt(0).toUpperCase() + cityData.province.slice(1)}
+                Population: ${cityData.population}
+                Category: ${cityData.category}
+                
+                REAL-TIME MONITORING:
+                Traffic: ${cityData.realtime.traffic.level.toUpperCase()} (${cityData.realtime.traffic.average_speed})
+                Weather: ${cityData.realtime.weather.temp}°C, ${cityData.realtime.weather.condition}
+                Air Quality: ${cityData.realtime.air_quality.aqi} - ${cityData.realtime.air_quality.level}
+                Disaster Alert: ${cityData.realtime.disaster.level.toUpperCase()} - ${cityData.realtime.disaster.message}
+                
+                WASTE MANAGEMENT:
+                Daily Waste: ${cityData.waste.stats.totalWastePerDay}
+                Recycling Rate: ${cityData.waste.stats.recyclingRate}
+                Collection Coverage: ${cityData.waste.stats.collectionCoverage}
+                Landfill Usage: ${cityData.waste.stats.landfillUsage}
+                
+                ONGOING OPERATIONS (${cityData.waste.ongoing.length}):
+                ${cityData.waste.ongoing.map(op => `
+                • ${op.type.toUpperCase()}: ${op.status} ${op.completion ? `(${op.completion})` : ''}
+                `).join('\n')}
+                
+                FACILITIES:
+                ${cityData.waste.centers.map(center => `
+                • ${center.name}
+                  Type: ${center.type}
+                  Status: ${center.status}
+                  Capacity: ${center.capacity}%
+                  Processing: ${center.processing}
+                `).join('\n')}
+                
+                ---
+                Sri Lanka Smart City Dashboard
+                Ministry of Urban Development
+                Environmental Protection Division
+            `;
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Smart_City_Report_${cityName}_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage(`City report for ${cityName} downloaded!`, 2000);
+        }
+
+        function openReportModal() {
+            const emergency = prompt(`Report Emergency:\n\n1. Traffic accident\n2. Medical emergency\n3. Fire\n4. Structural damage\n5. Environmental hazard\n6. Waste emergency\n7. Other\n\nEnter emergency number:`);
+            if (emergency) {
+                const location = prompt("Enter location or describe the emergency:");
+                if (location) {
+                    alert(`EMERGENCY REPORTED!\n\nEmergency services have been notified.\nTracking #: EM${Date.now().toString().slice(-6)}\n\nPlease stay safe and follow instructions from authorities.`);
+                }
+            }
+        }
+
+        // Landing page controls with fade transition
+        function enterDashboard() {
+            const landing = document.getElementById('landing');
+            if (!landing) return;
+            landing.classList.add('landing-hidden');
+            // After transition, hide fully and fix map rendering
+            setTimeout(()=>{
+                landing.style.display = 'none';
+                if(window.map && map.invalidateSize) map.invalidateSize();
+            }, 700);
+            showMessage('Welcome to Smart City Dashboard', 3000);
+        }
+
+        function previewDemo(){
+            enterDashboard();
+            setTimeout(()=>{ showAllCities(); showMessage('Previewing live data',2000); }, 800);
+        }
+
+        // Initialize App
+        function initializeApp() {
+            // Populate city grid
+            populateCityGrid('all');
+            
+            // Show all city markers on map
+            Object.keys(CITY_DATA).forEach(city => {
+                addCityMarker(city, CITY_DATA[city]);
+            });
+            
+            // Setup search
+            document.getElementById('search-btn').addEventListener('click', function() {
+                const query = document.getElementById('search').value.trim();
+                if (query) {
+                    const foundCity = Object.keys(CITY_DATA).find(city => 
+                        city.toLowerCase().includes(query.toLowerCase())
+                    );
+                    if (foundCity) {
+                        selectCity(foundCity);
+                    } else {
+                        showMessage(`City "${query}" not found. Try: Colombo, Kandy, Galle, etc.`, 3000);
+                    }
+                }
+            });
+
+            // Map click event
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lon = e.latlng.lng;
+                
+                // Simple message for clicked location
+                map.setView([lat, lon], 13);
+                showTrafficRoutes(lat, lon, 10);
+                showMessage(`Location: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`, 2000);
+            });
+
+            // Start real-time updates
+            setInterval(simulateRealTimeUpdates, 1000);
+            updateTimer();
+            
+            showMessage('Smart City Dashboard loaded! 32 cities with real-time monitoring available.', 5000);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
